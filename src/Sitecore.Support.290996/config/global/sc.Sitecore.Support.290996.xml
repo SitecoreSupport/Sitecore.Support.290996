@@ -1,0 +1,29 @@
+<Settings>
+    <!--
+    Provides default configuration for component services for the Publishing Service application    
+        
+    NOTE:
+      When registering a type you can configure the following values:
+        Type      (Required): The full type reference of the instance being registered
+        As        (Optional): The type the instance may be resolved as (defaults to Type if not provided)
+        LifeTime  (Optional): The lifetime of instance.  Can be Singleton or Transient. (defaults to Singleton)
+        Options   (Optional): If the type contains a constuctor that recieves IConfiguration, you can proivide
+                              addtional values here to match the resulting type of options for that type.
+  -->
+    <Sitecore>
+        <Publishing>
+            <Services>
+                <!--
+          PROVIDERS
+          
+          Providers act upon a given data connection to execute queries in a domain specific implementation.
+          E.g. a provider may recieve a data connection and use that connection to execute SQL queries against it.          
+        -->
+                <ClassicItemDataProvider>
+                    <Type>Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerDataProvider, Sitecore.Support.290996</Type>
+                    <As>Sitecore.Framework.Publishing.Data.Classic.IClassicItemDataProvider`1[[Sitecore.Framework.Publishing.Data.AdoNet.IDatabaseConnection, Sitecore.Framework.Publishing.Service.Abstractions]], Sitecore.Framework.Publishing.Data.Classic</As>
+                </ClassicItemDataProvider>
+            </Services>
+        </Publishing>
+    </Sitecore>
+</Settings>
