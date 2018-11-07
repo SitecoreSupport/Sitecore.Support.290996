@@ -112,7 +112,9 @@
     <None Include="web.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="config\global\sc.Sitecore.Support.290996.xml" />
+    <Content Include="config\global\sc.Sitecore.Support.290996.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
