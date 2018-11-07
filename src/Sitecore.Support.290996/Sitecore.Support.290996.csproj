@@ -46,45 +46,59 @@
     </Reference>
     <Reference Include="Microsoft.Extensions.Configuration.Abstractions">
       <HintPath>..\..\lib\Microsoft.Extensions.Configuration.Abstractions.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.Extensions.Logging.Abstractions">
       <HintPath>..\..\lib\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Conditions">
       <HintPath>..\..\lib\Sitecore.Framework.Conditions.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Configuration.Extensions">
       <HintPath>..\..\lib\Sitecore.Framework.Configuration.Extensions.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Publishing">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Publishing.Abstractions">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Abstractions.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Publishing.Common">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Common.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Publishing.Data">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Data.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Publishing.Data.Classic">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Data.Classic.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Publishing.Data.Links.Sql.Schema">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Data.Links.Sql.Schema.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Publishing.Data.Source.Sql.Schema">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Data.Source.Sql.Schema.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Publishing.Data.Target.Sql.Schema">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Data.Target.Sql.Schema.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Publishing.Service.Abstractions">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Service.Abstractions.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Framework.Publishing.Sql">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Sql.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Sitecore.Kernel">
       <HintPath>..\packages\SC.Sitecore.Kernel.8.2.2\lib\Sitecore.Kernel.dll</HintPath>
@@ -112,9 +126,7 @@
     <None Include="web.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="config\global\sc.Sitecore.Support.290996.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    <Content Include="config\global\sc.Sitecore.Support.290996.xml" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
