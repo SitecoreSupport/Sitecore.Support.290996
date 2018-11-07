@@ -8,16 +8,20 @@ using System.Threading.Tasks;
 using Sitecore.Framework.Conditions;
 using Sitecore.Framework.Publishing.Data.AdoNet;
 using Sitecore.Framework.Publishing.Data.Classic;
-using Sitecore.Framework.Publishing.Data.Classic.SqlServer;
 using Sitecore.Framework.Publishing;
+
+using SourceSchema = Sitecore.Framework.Publishing.Data.Source.Sql.Schema;
+using TargetSchema = Sitecore.Framework.Publishing.Data.Target.Sql.Schema;
+using LinksSchema = Sitecore.Framework.Publishing.Data.Links.Sql.Schema;
+using Sitecore.Framework.Publishing.Item;
 
 namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
 {
-  public class ClassicSqlServerDataProvider: Sitecore.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerDataProvider
+  public class ClassicSqlServerDataProvider: Sitecore.Framework.Publishing.Data.Classic.IClassicItemDataProvider<IDatabaseConnection>
   {
     private readonly ILogger<ClassicSqlServerDataProvider> _logger;
 
-    public ClassicSqlServerDataProvider(ILogger<ClassicSqlServerDataProvider> logger): base(logger)
+    public ClassicSqlServerDataProvider(ILogger<ClassicSqlServerDataProvider> logger)
     {
       Condition.Requires(logger, nameof(logger)).IsNotNull();
 
@@ -26,7 +30,7 @@ namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
 
     public object SqlServerUtils { get; private set; }
 
-    public async Task<Tuple<ItemDataChangeEntity[], FieldDataChangeEntity[]>> AddOrUpdateVariants(
+    public async new Task<Tuple<ItemDataChangeEntity[], FieldDataChangeEntity[]>> AddOrUpdateVariants(
     IDatabaseConnection connection,
     IReadOnlyCollection<ItemDataEntity> itemDatas,
     IReadOnlyCollection<FieldDataEntity> itemFields,
@@ -35,8 +39,8 @@ namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
     IReadOnlyCollection<Guid> variantFieldsToReport,
     bool calculateChanges = true)
     {
-      var itemTable = ClassicSqlServerUtils.BuildItemDataTable(itemDatas);
-      var fieldsTable = ClassicSqlServerUtils.BuildFieldDataTable(itemFields);
+      var itemTable = Sitecore.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerUtils.BuildItemDataTable(itemDatas);
+      var fieldsTable = Sitecore.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerUtils.BuildFieldDataTable(itemFields);
 
       var invariantsToReport = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(invariantFieldsToReport);
       var langVariantsToReport = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(langVariantFieldsToReport);
@@ -77,38 +81,6 @@ namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
         }
       }).ConfigureAwait(false);
     }
-
-    private async Task<Tuple<ItemDataChangeEntity[], FieldDataChangeEntity[]>> GetChangeReport(
-    SqlMapper.GridReader reader,
-    IReadOnlyCollection<Guid> fields,
-    IReadOnlyCollection<Guid> langVariantFields,
-    IReadOnlyCollection<Guid> variantFields)
-    {
-      var itemDataChanges = (await reader.ReadAsync<ItemDataChangeEntity>().ConfigureAwait(false)).ToArray();
-
-      var invariantFieldDataChanges = !fields.Any() ?
-          new FieldDataChangeEntity[0] :
-          (await reader.ReadAsync<FieldDataChangeEntity>().ConfigureAwait(false))
-              .Where(f => f.Value != f.OriginalValue) // don't report fields that didnt change.
-              .ToArray();
-
-      var langVariantFieldDataChanges = !langVariantFields.Any() ?
-          new FieldDataChangeEntity[0] :
-          (await reader.ReadAsync<FieldDataChangeEntity>().ConfigureAwait(false))
-              .Where(f => f.Value != f.OriginalValue)
-              .ToArray();
-
-      var variantFieldDataChanges = !variantFields.Any() ?
-          new FieldDataChangeEntity[0] :
-          (await reader.ReadAsync<FieldDataChangeEntity>().ConfigureAwait(false))
-              .Where(f => f.Value != f.OriginalValue)
-              .ToArray();
-
-      return new Tuple<ItemDataChangeEntity[], FieldDataChangeEntity[]>(
-              itemDataChanges,
-              invariantFieldDataChanges.Concat(langVariantFieldDataChanges).Concat(variantFieldDataChanges).ToArray());
-    }
-
 
     protected virtual string SupportSetItemVariants
     {
@@ -208,7 +180,7 @@ namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
 				   dbField.Value AS OriginalValue,
 				   CASE 
 						WHEN dbField.Id IS NULL THEN 'Created'
-						WHEN dbField.Value = newField.Value THEN 'Unchanged'
+						WHEN dbField.Value = newField.Value COLLATE Latin1_General_CS_AS THEN 'Unchanged' -- Sitecore.Support.290996
 						ELSE 'Updated' 
 				   END AS EditType
 
@@ -234,7 +206,7 @@ namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
 				ON	dbField.[ItemId]  = newField.[ItemId] AND
 					dbField.[FieldId] = newField.[FieldId]
 		
-		WHERE dbField.Value <> newField.Value
+		WHERE dbField.Value <> newField.Value COLLATE Latin1_General_CS_AS -- Sitecore.Support.290996
 
 		-- Insert new
 		INSERT INTO	[SharedFields] ([Id], [ItemId], [FieldId], [Value], [Created], [Updated])
@@ -283,7 +255,7 @@ namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
 				   dbField.Value AS OriginalValue,
 				   CASE 
 						WHEN dbField.Id IS NULL THEN 'Created'
-						WHEN dbField.Value = newField.Value THEN 'Unchanged'
+						WHEN dbField.Value = newField.Value COLLATE Latin1_General_CS_AS THEN 'Unchanged' -- Sitecore.Support.290996
 						ELSE 'Updated' 
 				   END AS EditType
 			FROM @Fields newField
@@ -309,7 +281,7 @@ namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
 					AND	dbField.[FieldId]  = newField.[FieldId]
 					AND	dbField.[Language] = newField.[Language]
 
-		WHERE dbField.Value <> newField.Value
+		WHERE dbField.Value <> newField.Value COLLATE Latin1_General_CS_AS -- Sitecore.Support.290996
 
 		-- Insert new
 		INSERT INTO	[UnversionedFields] ([Id], [ItemId], [FieldId], [Language], [Value], [Created], [Updated])
@@ -363,7 +335,7 @@ namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
 				   dbField.Value AS OriginalValue,
 				   CASE 
 						WHEN dbField.Id IS NULL THEN 'Created'
-						WHEN dbField.Value = newField.Value THEN 'Unchanged'
+						WHEN dbField.Value = newField.Value COLLATE Latin1_General_CS_AS THEN 'Unchanged' -- Sitecore.Support.290996
 						ELSE 'Updated' 
 				   END AS EditType
 			FROM @Fields newField
@@ -390,7 +362,7 @@ namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
 					AND	dbField.[Language] = newField.[Language]
 					AND	dbField.[Version]  = newField.[Version]
 
-		WHERE dbField.Value <> newField.Value
+		WHERE dbField.Value <> newField.Value COLLATE Latin1_General_CS_AS -- Sitecore.Support.290996
 
 		-- Insert new
 		INSERT INTO	[VersionedFields] ([Id], [ItemId], [FieldId], [Language], [Version], [Value], [Created], [Updated])
@@ -450,5 +422,571 @@ namespace Sitecore.Support.Framework.Publishing.Data.Classic.SqlServer
 	END CATCH;";
       }
     }
+
+    // Variant Data
+
+    public async Task<Tuple<ItemBaseEntity, IEnumerable<FieldDataEntity>>> GetVariantData(IDatabaseConnection connection, IItemVariantIdentifier locator)
+    {
+      return await connection.ExecuteAsync(async conn =>
+      {
+        using (var results = await conn.QueryMultipleAsync(
+                    SourceSchema.Items.Queries.GetItemVariant,
+                    new
+                    {
+                      Id = locator.Id,
+                      Version = locator.Version,
+                      Language = locator.Language
+                    },
+                    null,
+                    connection.CommandTimeout).ConfigureAwait(false))
+        {
+          var itemDatas = (await results.ReadAsync<ItemBaseEntity>().ConfigureAwait(false)).ToArray();
+          var itemData = itemDatas.FirstOrDefault();
+
+          if (itemData == null) return null; // not-found
+
+          var fieldDatas = (await results.ReadAsync<FieldDataEntity>().ConfigureAwait(false)).ToArray();
+
+          return new Tuple<ItemBaseEntity, IEnumerable<FieldDataEntity>>(itemData, fieldDatas);
+        }
+      }).ConfigureAwait(false);
+    }
+
+    public async Task<Tuple<IEnumerable<ItemBaseEntity>, IEnumerable<FieldDataEntity>>> GetVariantsData(
+        IDatabaseConnection connection,
+        IReadOnlyCollection<IItemVariantIdentifier> uris)
+    {
+      return await connection.ExecuteAsync(async conn =>
+      {
+        using (var results = await conn.QueryMultipleAsync(
+                    SourceSchema.Items.Queries.GetItemVariants,
+                    new { Uris = Sitecore.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerUtils.BuildUriTable(uris) },
+                    null,
+                    connection.CommandTimeout).ConfigureAwait(false))
+        {
+          var itemDatas = (await results.ReadAsync<ItemBaseEntity>().ConfigureAwait(false)).ToArray();
+
+          var fieldDatas =
+              (await results.ReadAsync<FieldDataEntity>().ConfigureAwait(false)).ToArray();
+
+          return new Tuple<IEnumerable<ItemBaseEntity>, IEnumerable<FieldDataEntity>>(
+              itemDatas,
+              fieldDatas);
+        }
+      }).ConfigureAwait(false);
+    }
+
+    public async Task<Tuple<ItemDataEntity, FieldDataChangeEntity[]>> DeleteVariantData(
+        IDatabaseConnection connection,
+        IItemVariantIdentifier uri,
+        IReadOnlyCollection<Guid> variantFieldsToReport,
+        bool calculateChanges = true)
+    {
+      var fieldReportTable = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(variantFieldsToReport);
+
+      return await connection.ExecuteAsync(async conn =>
+      {
+        using (var results = await conn.QueryMultipleAsync(
+            TargetSchema.Items.Queries.DeleteItemVariant,
+            new
+            {
+              Id = uri.Id,
+              Version = uri.Version,
+              Language = uri.Language,
+              CalculateChanges = calculateChanges ? 1 : 0,
+              VariantFieldsToReport = fieldReportTable
+            },
+            connection.Transaction,
+            connection.CommandTimeout).ConfigureAwait(false))
+        {
+          var itemData = (await results.ReadAsync<ItemDataEntity>().ConfigureAwait(false)).FirstOrDefault();
+
+          var versionedFieldDataChanges = results.IsConsumed ?
+              new FieldDataChangeEntity[0] :
+              (await results.ReadAsync<FieldDataChangeEntity>().ConfigureAwait(false))
+                  .Where(f => f.Value != f.OriginalValue).ToArray();
+
+          return new Tuple<ItemDataEntity, FieldDataChangeEntity[]>(
+              itemData,
+              versionedFieldDataChanges.ToArray());
+        }
+      }).ConfigureAwait(false);
+    }
+
+    public async Task<Tuple<ItemDataEntity[], FieldDataChangeEntity[]>> DeleteVariantsData(
+        IDatabaseConnection connection,
+        IReadOnlyCollection<IItemVariantIdentifier> uris,
+        IReadOnlyCollection<Guid> variantFieldsToReport,
+        bool calculateChanges = true)
+    {
+      var fieldReportTable = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(variantFieldsToReport);
+
+      return await connection.ExecuteAsync(async conn =>
+      {
+        using (var results = await conn.QueryMultipleAsync(
+            TargetSchema.Items.Queries.DeleteItemVariants,
+            new
+            {
+              Uris = Sitecore.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerUtils.BuildUriTable(uris),
+              CalculateChanges = calculateChanges ? 1 : 0,
+              VariantFieldsToReport = fieldReportTable
+            },
+            connection.Transaction,
+            connection.CommandTimeout).ConfigureAwait(false))
+        {
+          var itemDatas = (await results.ReadAsync<ItemDataEntity>().ConfigureAwait(false)).ToArray();
+
+          var versionedFieldDataChanges = results.IsConsumed ?
+              new FieldDataChangeEntity[0] :
+              (await results.ReadAsync<FieldDataChangeEntity>().ConfigureAwait(false))
+                  .Where(f => f.Value != f.OriginalValue).ToArray();
+
+          return new Tuple<ItemDataEntity[], FieldDataChangeEntity[]>(
+              itemDatas,
+              versionedFieldDataChanges);
+        }
+      }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Removes the item, field and link data for all languages and versions of an item
+    /// </summary>
+    /// <param name="connection">The database transactional connection.</param>
+    /// <param name="id">The id for the item to be deleted.</param>
+    /// <param name="calculateChanges">Set to <c></c></param>
+    /// <returns>True if successful, otherwise false.</returns>
+    public Task<ItemDataDeleteEntity> DeleteItem(IDatabaseConnection connection, Guid id, bool calculateChanges = true)
+    {
+      return connection.ExecuteAsync(async conn =>
+      {
+        var results = await conn.QueryAsync<ItemDataDeleteEntity>(
+                TargetSchema.Items.Queries.DeleteItem,
+                new
+                {
+                  Id = id,
+                  CalculateChanges = calculateChanges ? 1 : 0
+                },
+                connection.Transaction,
+                connection.CommandTimeout).ConfigureAwait(false);
+
+        return results.FirstOrDefault();
+      });
+    }
+
+    /// <summary>
+    /// Removes the item, field and link data for all languages and versions of multiple items.
+    /// </summary>
+    /// <param name="connection">The database transactional connection.</param>
+    /// <param name="ids">The ids of the items to be deleted.</param>
+    /// <param name="calculateChanges">Whether changes should be calculated.</param>
+    /// <returns>True if successful, otherwise false.</returns>
+    public Task<ItemDataDeleteEntity[]> DeleteItems(IDatabaseConnection connection, IReadOnlyCollection<Guid> ids, bool calculateChanges = true)
+    {
+      return connection.ExecuteAsync(async conn =>
+      {
+        using (var results = await conn.QueryMultipleAsync(
+            TargetSchema.Items.Queries.DeleteItems,
+            new
+            {
+              Ids = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(ids),
+              CalculateChanges = calculateChanges ? 1 : 0
+            },
+            connection.Transaction,
+            connection.CommandTimeout).ConfigureAwait(false))
+        {
+          var itemDataChanges = (await results.ReadAsync<ItemDataDeleteEntity>().ConfigureAwait(false)).ToArray();
+          return itemDataChanges;
+        }
+      });
+    }
+
+    // Links
+    public Task<IEnumerable<ItemLinkEntity>> GetVariantOutLinks(IDatabaseConnection connection, string source, IItemVariantIdentifier locator)
+    {
+      return connection.ExecuteAsync(async conn =>
+          await conn.QueryAsync<ItemLinkEntity>(
+              LinksSchema.Links.Queries.GetItemVariantOutLinks,
+              new
+              {
+                Id = locator.Id,
+                Version = locator.Version,
+                Language = locator.Language,
+                SourceIdentifier = source
+              },
+              connection.Transaction,
+              connection.CommandTimeout).ConfigureAwait(false));
+    }
+
+    public Task<IEnumerable<ItemLinkEntity>> GetVariantsOutLinks(
+        IDatabaseConnection connection,
+        string source,
+        IReadOnlyCollection<IItemVariantIdentifier> locators,
+        IReadOnlyCollection<Guid> fieldIdsWhiteList)
+    {
+      return connection.ExecuteAsync(async conn =>
+          await conn.QueryAsync<ItemLinkEntity>(
+              LinksSchema.Links.Queries.GetItemVariantsOutLinks,
+              new
+              {
+                Uris = Sitecore.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerUtils.BuildUriTable(locators),
+                SourceIdentifier = source,
+                FieldIdsWhiteList = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(fieldIdsWhiteList)
+              },
+              connection.Transaction,
+              connection.CommandTimeout).ConfigureAwait(false));
+    }
+
+    public Task<IEnumerable<ItemLinkEntity>> GetVariantInLinks(IDatabaseConnection connection, string source, IItemVariantIdentifier locator)
+    {
+      return connection.ExecuteAsync(async conn =>
+          await conn.QueryAsync<ItemLinkEntity>(
+              LinksSchema.Links.Queries.GetItemVariantInLinks,
+              new
+              {
+                Id = locator.Id,
+                Version = locator.Version,
+                Language = locator.Language,
+                SourceIdentifier = source
+              },
+              connection.Transaction,
+              connection.CommandTimeout).ConfigureAwait(false));
+    }
+
+    public Task<IEnumerable<ItemLinkEntity>> GetVariantsInLinks(
+        IDatabaseConnection connection,
+        string source,
+        IReadOnlyCollection<IItemVariantIdentifier> locators,
+        IReadOnlyCollection<Guid> fieldIdsWhiteList)
+    {
+      return connection.ExecuteAsync(async conn =>
+          await conn.QueryAsync<ItemLinkEntity>(
+              LinksSchema.Links.Queries.GetItemVariantsInLinks,
+              new
+              {
+                Uris = Sitecore.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerUtils.BuildUriTable(locators),
+                SourceIdentifier = source,
+                FieldIdsWhiteList = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(fieldIdsWhiteList)
+              },
+              connection.Transaction,
+              connection.CommandTimeout).ConfigureAwait(false));
+    }
+
+    public Task<Tuple<IEnumerable<ItemLinkEntity>, IEnumerable<ItemLinkEntity>>> GetVariantsAllLinks(
+        IDatabaseConnection connection,
+        string source,
+        IReadOnlyCollection<IItemVariantIdentifier> locators,
+        IReadOnlyCollection<Guid> outFieldIdsWhiteList,
+        IReadOnlyCollection<Guid> inFieldIdsWhiteList)
+    {
+      return connection.ExecuteAsync(async conn =>
+      {
+        using (var results = await conn.QueryMultipleAsync(
+            LinksSchema.Links.Queries.GetItemVariantsAllLinks,
+            new
+            {
+              Uris = Sitecore.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerUtils.BuildUriTable(locators),
+              SourceIdentifier = source,
+              OutFieldIdsWhiteList = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(outFieldIdsWhiteList),
+              InFieldIdsWhiteList = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(inFieldIdsWhiteList)
+            },
+            connection.Transaction,
+            connection.CommandTimeout).ConfigureAwait(false))
+        {
+          var outLinks = (await results.ReadAsync<ItemLinkEntity>().ConfigureAwait(false)).ToArray();
+          var inLinks = (await results.ReadAsync<ItemLinkEntity>().ConfigureAwait(false)).ToArray();
+          return new Tuple<IEnumerable<ItemLinkEntity>, IEnumerable<ItemLinkEntity>>(
+              outLinks,
+              inLinks);
+        }
+      });
+    }
+
+    public Task<IEnumerable<ItemLinkEntity>> GetOutRelationships(
+        IDatabaseConnection connection,
+        string source,
+        IReadOnlyCollection<Guid> fieldIdsWhiteList)
+    {
+      return connection.ExecuteAsync(async conn =>
+      await conn.QueryAsync<ItemLinkEntity>(
+          LinksSchema.Links.Queries.GetItemOutIdsBySourceField,
+          new
+          {
+            SourceIdentifier = source,
+            FieldIdsWhiteList = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(fieldIdsWhiteList)
+          },
+          connection.Transaction,
+          connection.CommandTimeout).ConfigureAwait(false));
+    }
+
+    public Task<IEnumerable<ItemLinkEntity>> GetInRelationships(
+        IDatabaseConnection connection,
+        string source,
+        IReadOnlyCollection<Guid> outItemsIds,
+        IReadOnlyCollection<Guid> fieldIdsWhiteList)
+    {
+      return connection.ExecuteAsync(async conn =>
+      await conn.QueryAsync<ItemLinkEntity>(
+          LinksSchema.Links.Queries.GetItemInIds,
+          new
+          {
+            SourceIdentifier = source,
+            OutItemsIds = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(outItemsIds),
+            FieldIdsWhiteList = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(fieldIdsWhiteList)
+          },
+          connection.Transaction,
+          connection.CommandTimeout).ConfigureAwait(false));
+    }
+
+    public Task AddOrUpdateLinks(IDatabaseConnection connection, string source, IReadOnlyCollection<ItemLinkEntity> links)
+    {
+      var linksTable = Sitecore.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerUtils.BuildLinkDataTable(links, source);
+
+      return connection.ExecuteAsync(async conn =>
+      {
+        using (var results = await conn.QueryMultipleAsync(
+            LinksSchema.Links.Queries.SetItemVariantsLinks,
+            new { Links = linksTable },
+            connection.Transaction,
+            connection.CommandTimeout).ConfigureAwait(false))
+        {
+        }
+      });
+    }
+
+    public Task DeleteVariantLinks(IDatabaseConnection connection, string source, IItemVariantIdentifier uri)
+    {
+      return connection.ExecuteAsync(async conn =>
+          await conn.ExecuteAsync(
+              LinksSchema.Links.Queries.DeleteItemVariantLinks,
+              new
+              {
+                Id = uri.Id,
+                Version = uri.Version,
+                Language = uri.Language,
+                SourceIdentifier = source
+              },
+              connection.Transaction,
+              connection.CommandTimeout).ConfigureAwait(false));
+    }
+
+    public Task DeleteVariantsLinks(IDatabaseConnection connection, string source, IReadOnlyCollection<IItemVariantIdentifier> uris)
+    {
+      return connection.ExecuteAsync(async conn =>
+          await conn.ExecuteAsync(
+              LinksSchema.Links.Queries.DeleteItemVariantsLinks,
+              new
+              {
+                Uris = Sitecore.Framework.Publishing.Data.Classic.SqlServer.ClassicSqlServerUtils.BuildUriTable(uris),
+                SourceIdentifier = source
+              },
+              connection.Transaction,
+              connection.CommandTimeout).ConfigureAwait(false));
+    }
+
+    public async Task DeleteItemLinks(IDatabaseConnection connection, string source, Guid id)
+    {
+      await connection.ExecuteAsync(async conn =>
+          await conn.ExecuteAsync(
+              LinksSchema.Links.Queries.DeleteItemLinks,
+              new
+              {
+                Id = id,
+                SourceIdentifier = source
+              },
+              connection.Transaction,
+              connection.CommandTimeout).ConfigureAwait(false)).ConfigureAwait(false);
+    }
+
+    public async Task DeleteItemsLinks(IDatabaseConnection connection, string source, IReadOnlyCollection<Guid> ids)
+    {
+      await connection.ExecuteAsync(async conn =>
+          await conn.ExecuteAsync(
+              LinksSchema.Links.Queries.DeleteItemsLinks,
+              new
+              {
+                Ids = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(ids),
+                SourceIdentifier = source
+              },
+              connection.Transaction,
+              connection.CommandTimeout).ConfigureAwait(false)).ConfigureAwait(false);
+    }
+
+    // Item Nodes
+
+    public async Task<IEnumerable<ItemDataEntity>> GetItemNodeAncestorsData(IDatabaseConnection connection, Guid id)
+    {
+      return await connection.ExecuteAsync(async conn =>
+          await conn.QueryAsync<ItemDataEntity>(
+              SourceSchema.Items.Queries.GetItemNodeAncestors,
+              new { Id = id },
+              commandTimeout: connection.CommandTimeout).ConfigureAwait(false)).ConfigureAwait(false);
+    }
+
+    public async Task<Tuple<ItemBaseEntity, IEnumerable<FieldDataEntity>>> GetItemNodeData(IDatabaseConnection connection, Guid id)
+    {
+      return await connection.ExecuteAsync(async conn =>
+      {
+        using (var results = await conn.QueryMultipleAsync(
+            SourceSchema.Items.Queries.GetItemNode,
+            new
+            {
+              Id = id,
+              RevisionId = PublishingConstants.StandardFields.Revision
+            },
+            null,
+            connection.CommandTimeout).ConfigureAwait(false))
+        {
+          var itemDatas = (await results.ReadAsync<ItemBaseEntity>().ConfigureAwait(false)).ToArray();
+          var itemData = itemDatas.FirstOrDefault();
+
+          if (itemData == null) return null; // not-found
+
+          var fieldDatas =
+              (await results.ReadAsync<FieldDataEntity>().ConfigureAwait(false)).ToArray();
+
+          var relationships = Enumerable.Empty<ItemLinkEntity>();
+
+          return new Tuple<ItemBaseEntity, IEnumerable<FieldDataEntity>>(itemData, fieldDatas);
+        }
+      }).ConfigureAwait(false);
+    }
+
+    public async Task<Tuple<IEnumerable<ItemBaseEntity>, IEnumerable<FieldDataEntity>>> GetItemNodesData(IDatabaseConnection connection, IReadOnlyCollection<Guid> ids)
+    {
+      return await connection.ExecuteAsync(async conn =>
+      {
+        using (var results = await conn.QueryMultipleAsync(
+            SourceSchema.Items.Queries.GetItemNodes,
+            new
+            {
+              Ids = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(ids),
+              RevisionId = PublishingConstants.StandardFields.Revision
+            },
+            null,
+            connection.CommandTimeout).ConfigureAwait(false))
+        {
+          var itemDatas = (await results.ReadAsync<ItemBaseEntity>().ConfigureAwait(false)).ToArray();
+
+          var fieldDatas = (await results.ReadAsync<FieldDataEntity>().ConfigureAwait(false)).ToArray();
+
+          return new Tuple<IEnumerable<ItemBaseEntity>, IEnumerable<FieldDataEntity>>(itemDatas, fieldDatas);
+        }
+      }).ConfigureAwait(false);
+    }
+
+    public async Task<IEnumerable<ItemDescriptorEntity>> GetAllItems(IDatabaseConnection connection)
+    {
+      return await connection.ExecuteAsync<IEnumerable<ItemDescriptorEntity>>(async conn =>
+      {
+        var results = await conn.QueryAsync<ItemDescriptorEntity>(
+            SourceSchema.Items.Queries.GetAllNodes,
+            new { BaseTemplateFieldId = PublishingConstants.TemplateFields.BaseTemplate },
+            null,
+            connection.CommandTimeout).ConfigureAwait(false);
+
+        return results;
+      }).ConfigureAwait(false);
+    }
+
+    public async Task<IEnumerable<ItemDescriptorEntity>> GetItemsByIds(IDatabaseConnection connection, IReadOnlyCollection<Guid> ids)
+    {
+      return await connection.ExecuteAsync<IEnumerable<ItemDescriptorEntity>>(async conn =>
+      {
+        var results = await conn.QueryAsync<ItemDescriptorEntity>(
+            SourceSchema.Items.Queries.GetNodesByIds,
+            new { Ids = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(ids), BaseTemplateFieldId = PublishingConstants.TemplateFields.BaseTemplate },
+            null,
+            connection.CommandTimeout).ConfigureAwait(false);
+
+        return results;
+      }).ConfigureAwait(false);
+    }
+
+    public async Task<IEnumerable<ItemDescriptorEntity>> GetItemsByTemplateId(IDatabaseConnection connection, Guid templateId)
+    {
+      return await connection.ExecuteAsync<IEnumerable<ItemDescriptorEntity>>(async conn =>
+      {
+        var results = await conn.QueryAsync<ItemDescriptorEntity>(
+            SourceSchema.Items.Queries.GetNodesByTemplateId,
+            new { TemplateId = templateId, BaseTemplateFieldId = PublishingConstants.TemplateFields.BaseTemplate },
+            null,
+            connection.CommandTimeout).ConfigureAwait(false);
+
+        return results;
+      }).ConfigureAwait(false);
+    }
+
+    public async Task<IEnumerable<ItemDescriptorEntity>> GetChildItemsByParentIds(IDatabaseConnection connection, IReadOnlyCollection<Guid> parentIds)
+    {
+      return await connection.ExecuteAsync<IEnumerable<ItemDescriptorEntity>>(async conn =>
+      {
+        var results = await conn.QueryAsync<ItemDescriptorEntity>(
+            SourceSchema.Items.Queries.GetNodesByParentIds,
+            new { Ids = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(parentIds), BaseTemplateFieldId = PublishingConstants.TemplateFields.BaseTemplate },
+            null,
+            connection.CommandTimeout).ConfigureAwait(false);
+
+        return results;
+      }).ConfigureAwait(false);
+    }
+
+    public Task InitialiseDataQueryParams(IDatabaseConnection connection, IReadOnlyCollection<Language> languageFilter, IReadOnlyCollection<Guid> fieldFilter)
+    {
+      return connection.ExecuteAsync(async conn =>
+          await conn.ExecuteAsync(
+              SourceSchema.Params.Queries.InitialiseDataQueryParams,
+              new
+              {
+                FieldIds = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildIdTable(fieldFilter),
+                Languages = Sitecore.Framework.Publishing.Sql.SqlServerUtils.BuildStringTable(languageFilter.Select(l => l.Name))
+              },
+              null,
+              connection.CommandTimeout).ConfigureAwait(false));
+    }
+
+    // Descendants
+
+    public Task RebuildDescendants(IDatabaseConnection connection)
+    {
+      return connection.ExecuteAsync(async conn =>
+          await conn.ExecuteAsync(
+              TargetSchema.Descendants.Queries.RebuildDescendants,
+              null,
+              connection.Transaction,
+              connection.CommandTimeout).ConfigureAwait(false));
+    }
+
+    private async Task<Tuple<ItemDataChangeEntity[], FieldDataChangeEntity[]>> GetChangeReport(
+        SqlMapper.GridReader reader,
+        IReadOnlyCollection<Guid> fields,
+        IReadOnlyCollection<Guid> langVariantFields,
+        IReadOnlyCollection<Guid> variantFields)
+    {
+      var itemDataChanges = (await reader.ReadAsync<ItemDataChangeEntity>().ConfigureAwait(false)).ToArray();
+
+      var invariantFieldDataChanges = !fields.Any() ?
+          new FieldDataChangeEntity[0] :
+          (await reader.ReadAsync<FieldDataChangeEntity>().ConfigureAwait(false))
+              .Where(f => f.Value != f.OriginalValue) // don't report fields that didnt change.
+              .ToArray();
+
+      var langVariantFieldDataChanges = !langVariantFields.Any() ?
+          new FieldDataChangeEntity[0] :
+          (await reader.ReadAsync<FieldDataChangeEntity>().ConfigureAwait(false))
+              .Where(f => f.Value != f.OriginalValue)
+              .ToArray();
+
+      var variantFieldDataChanges = !variantFields.Any() ?
+          new FieldDataChangeEntity[0] :
+          (await reader.ReadAsync<FieldDataChangeEntity>().ConfigureAwait(false))
+              .Where(f => f.Value != f.OriginalValue)
+              .ToArray();
+
+      return new Tuple<ItemDataChangeEntity[], FieldDataChangeEntity[]>(
+              itemDataChanges,
+              invariantFieldDataChanges.Concat(langVariantFieldDataChanges).Concat(variantFieldDataChanges).ToArray());
+    }
+
+
   }
 }

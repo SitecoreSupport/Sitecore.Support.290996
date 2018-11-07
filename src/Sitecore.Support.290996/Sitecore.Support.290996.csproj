@@ -71,6 +71,15 @@
     <Reference Include="Sitecore.Framework.Publishing.Data.Classic">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Data.Classic.dll</HintPath>
     </Reference>
+    <Reference Include="Sitecore.Framework.Publishing.Data.Links.Sql.Schema">
+      <HintPath>..\..\lib\Sitecore.Framework.Publishing.Data.Links.Sql.Schema.dll</HintPath>
+    </Reference>
+    <Reference Include="Sitecore.Framework.Publishing.Data.Source.Sql.Schema">
+      <HintPath>..\..\lib\Sitecore.Framework.Publishing.Data.Source.Sql.Schema.dll</HintPath>
+    </Reference>
+    <Reference Include="Sitecore.Framework.Publishing.Data.Target.Sql.Schema">
+      <HintPath>..\..\lib\Sitecore.Framework.Publishing.Data.Target.Sql.Schema.dll</HintPath>
+    </Reference>
     <Reference Include="Sitecore.Framework.Publishing.Service.Abstractions">
       <HintPath>..\..\lib\Sitecore.Framework.Publishing.Service.Abstractions.dll</HintPath>
     </Reference>
